@@ -88,6 +88,7 @@ class Paragraph {
     div.dataset.placeholder = this._placeholder;
 
     div.addEventListener('keyup', this.onKeyUp);
+    div.addEventListener('paste', this.onPaste);
 
     return div;
   }
