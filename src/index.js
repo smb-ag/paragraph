@@ -54,6 +54,7 @@ class Paragraph {
 
     if (!this.readOnly) {
       this.onKeyUp = this.onKeyUp.bind(this);
+      this.onPaste = this.onPaste.bind(this);
     }
 
     /**
@@ -101,6 +102,7 @@ class Paragraph {
     if (!this.readOnly) {
       div.contentEditable = true;
       div.addEventListener('keyup', this.onKeyUp);
+      div.addEventListener('paste', this.onPaste);
     }
 
     return div;
@@ -157,17 +159,61 @@ class Paragraph {
     };
   }
 
+  handleConfiguredPaste(event) {
+    const data = {
+      text: event.detail.data.innerHTML
+    };
+    this.data = data;
+  }
+
+  handleDefaultPaste(event) {
+    const text = event.clipboardData.getData('Text');
+
+    if (text.match(/^https?:\/\//)) {
+      // url was pasted, we handle this event completely
+      event.preventDefault();
+      event.stopPropagation();
+
+      const selectedHtml = () => {
+        const selection = document.getSelection();
+
+        if (!selection.rangeCount) {
+          return '';
+        }
+
+        const container = document.createElement('div');
+
+        for (let i = 0; i < selection.rangeCount; i++) {
+          container.appendChild(selection.getRangeAt(i).cloneContents());
+        }
+
+        return container.innerHTML;
+      };
+
+      const url = text;
+      const linktext = selectedHtml() || url;
+      const linktag = `<a href="${url}" title="${url}">${linktext}</a>`;
+
+      window.document.execCommand('insertHTML', false, linktag);
+    }
+  }
+
   /**
    * On paste callback fired from Editor.
    *
    * @param {PasteEvent} event - event with pasted data
    */
   onPaste(event) {
-    const data = {
-      text: event.detail.data.innerHTML
-    };
-
-    this.data = data;
+    // detail is given, so this is a editorjs configured paste event
+    if (event.detail) {
+      this.handleConfiguredPaste(event);
+    } else if (this._element.innerHTML !== '') {
+      // we only care about the paste if the element is not empty
+      // reason being that other blocks may want to handle it, and
+      // editorjs creates a paragraph on enter click, so we automatically are
+      // always in a paragraph, albeit an empty one
+      this.handleDefaultPaste(event);
+    }
   }
 
   /**
